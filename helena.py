@@ -6,10 +6,11 @@ import f90nml
 
 class Helena:
     keywords0D = ['MAGNETIC AXIS :', 'POLOIDAL BETA :', 'TOROIDAL BETA :', 'BETA STAR     :', 'NORM. BETA    :',
-                'TOTAL CURRENT :', 'TOTAL AREA    :', 'TOTAL VOLUME  :', 'INT. INDUCTANCE :', 'POL. FLUX     :']
+                'TOTAL CURRENT :', 'TOTAL AREA    :', 'TOTAL VOLUME  :', 'INT. INDUCTANCE :', 'POL. FLUX     :',
+                 'A,B,C         :']
 
     varwords0D = ['magnetic_axis', 'poloidal_beta', 'toroidal_beta', 'beta_star', 'norm_beta',
-                'total_current', 'total_area', 'total_volume', 'inductance', 'poloidal_flux']
+                'total_current', 'total_area', 'total_volume', 'inductance', 'poloidal_flux', 'abc']
 
     keywords1D = [' QS', ' P0', ' RBPHI']
 
