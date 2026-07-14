@@ -1271,8 +1271,6 @@ c----------------------------------- carefull : this is a 2D jacobian
      >            G22AV(I) * P2(I) * ABS(ZNKWEL) * QS(I)
         OMEGA2(I) = - CWW/(SPS2 * RAV2 * B0AV(I)) *
      >            G22AV(I) * P2(I) * ABS(ZNKWEL) * QS(I)
-        OMOLD = - CWW/(ASPI**2 * CS(I) *RBPHI(I)) * P2(I)
-     >        * ZNKWEL * QS(I) 
   200 CONTINUE
   201 FORMAT(I3,2F7.3,10F9.5)
       CALL SPLINE(NPSI,CS,OMEGA2,0.,0.,2,OM1,OM2,OM3,OM4)
@@ -5065,6 +5063,7 @@ C     ------------
 C
       DLI = QP/YR
       EW = EWSHIFT+DLI
+      WRITE(NOUT,12) IT,QP,YR,DLI,EWSHIFT,EW
       WRITE(NOUT,11) IT,EW,CABS(DLI/DLIM1)-1.
       IF(ABS(CABS(DLI/DLIM1)-1.0).LE.EPS ) GOTO 30
       GOTO 10
@@ -5080,6 +5079,7 @@ C
 C
    11 FORMAT(1X,' IT : ',I2,' EIGENVALUE : ',1P,2E12.4,
      >       '   REL. CHANGE : ',E12.4)
+   12 FORMAT(' GLISS_SHIFT_TRACE ',I3,1P,10E16.8,0P)
    21 FORMAT(' STOPPED AFTER ',I4,' ITERATIONS')
       END
 ************************************************************************
@@ -5846,7 +5846,7 @@ C
       ENDIF
 C     -----
 C
-      CALL EIGVFK(NG,NPDIM,EV,XP,YP,NBG)
+      IF (NPLOT.GT.0) CALL EIGVFK(NG,NPDIM,EV,XP,YP,NBG)
 C
 C     WRITE DATA FOR VACUUM MAGNETIC FIELD RECONSTRUCTION
 C
@@ -5865,6 +5865,7 @@ C    >              BUFF,XTAX,PROZ,CSUM2,CONBMAT)
 C     CSUM=CSUM1/CSUM2
 C     WRITE(NOUT,3) CSUM1,CSUM2,CSUM
 CC    CALL DIAGNOS(NG,EV)
+      CALL GLISSTRACE
       RETURN
 C
   701 FORMAT(1X,I3,6E12.4)
@@ -5875,6 +5876,176 @@ C
     2 FORMAT(///' XT*B*X :')
     3 FORMAT(/////' CSUM1,CSUM2',1P,4E12.4,0P/' DIAGNOSTIK:'/
      >       ' (XT*A*X)/(XT*B*X):',1P,2E12.4,0P)
+      END
+************************************************************************
+*DECK GLISSTRACE
+      SUBROUTINE GLISSTRACE
+C-----------------------------------------------------------------------
+C     MACHINE-READABLE POST-SOLVE TRACE OF THE OPERATOR INPUTS.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+*CALL COMP234
+*CALL COMPIO
+*CALL CORE234D
+*CALL COMGRID
+*CALL COMWEL
+*CALL COMIOD
+*CALL COMSPL
+*CALL COMFFT
+*CALL COMEQV
+C
+      INTEGER I, IOS, IP, IQ1, ISEL(3), J, K, L, NI, NSEL, NTRACE
+      REAL DIST, DMID, SREF
+      PARAMETER (NTRACE=29)
+C
+      OPEN(UNIT=NTRACE,FILE='fort.29',STATUS='REPLACE',ACTION='WRITE',
+     >     IOSTAT=IOS)
+      IF (IOS.NE.0) THEN
+         WRITE(NOUT,*) 'GLISS TRACE: CANNOT OPEN fort.29, IOSTAT=',IOS
+         STOP 'GLISS TRACE OUTPUT FAILURE'
+      ENDIF
+C
+      WRITE(NTRACE,'(A)') 'TRACE_VERSION,1'
+      WRITE(NTRACE,1000) NG,NGINT,NPSI,NCHI,MANZ,NBG,NZMA
+      WRITE(NTRACE,1001) CPSURF,ZNKWEL,NTOR
+      DO 10 K=1,MANZ
+         WRITE(NTRACE,1002) K,RFOUR(K)
+   10 CONTINUE
+      DO 20 I=1,NPSI
+         WRITE(NTRACE,1003) I,CS(I),QS(I),P0(I),RBPHI(I)
+   20 CONTINUE
+C
+      IQ1=1
+      DIST=ABS(QS(1)-1.0)
+      DO 30 I=2,NPSI
+         IF (ABS(QS(I)-1.0).LT.DIST) THEN
+            IQ1=I
+            DIST=ABS(QS(I)-1.0)
+         ENDIF
+   30 CONTINUE
+      SREF=CS(IQ1)
+      ISEL(1)=1
+      ISEL(2)=1
+      DMID=ABS(0.5*(SGRID(1)+SGRID(2))-SREF)
+      DO 40 NI=2,NGINT
+         DIST=ABS(0.5*(SGRID(NI)+SGRID(NI+1))-SREF)
+         IF (DIST.LT.DMID) THEN
+            ISEL(2)=NI
+            DMID=DIST
+         ENDIF
+   40 CONTINUE
+      ISEL(3)=NGINT
+      WRITE(NTRACE,1004) IQ1,ISEL(2),SREF,QS(IQ1)
+C
+      NSEL=0
+      DO 100 L=1,3
+         NI=ISEL(L)
+         IF (L.GT.1.AND.NI.EQ.ISEL(L-1)) GOTO 100
+         IF (L.EQ.3.AND.NI.EQ.ISEL(1)) GOTO 100
+         NSEL=NSEL+1
+         WRITE(NTRACE,1005) NSEL,NI,SGRID(NI),SGRID(NI+1)
+         DO 50 I=1,4
+            IP=(NI-1)*4+I
+            WRITE(NTRACE,1006) NI,I,SGI(IP),Q(IP),DQ(IP),T(IP),
+     >           DT(IP),RHO(IP),DRHO(IP),ZT0(IP),ZDT0(IP)
+            DO 45 K=1,LANZ
+               CALL GLISSTRACEPAIR(NTRACE,'R2',SGI(IP),K,RR2,IR2)
+               CALL GLISSTRACEPAIR(NTRACE,'R4',SGI(IP),K,RR4,IR4)
+               CALL GLISSTRACEPAIR(NTRACE,'GPSI',SGI(IP),K,
+     >              RGPSI,IGPSI)
+               CALL GLISSTRACEPAIR(NTRACE,'SOGPSI',SGI(IP),K,
+     >              RSOGPSI,ISOGPSI)
+               CALL GLISSTRACEPAIR(NTRACE,'GPGT',SGI(IP),K,
+     >              RGPGT,IGPGT)
+               CALL GLISSTRACEPAIR(NTRACE,'SGGG',SGI(IP),K,
+     >              RSGGG,ISGGG)
+               CALL GLISSTRACEPAIR(NTRACE,'SR2GGG',SGI(IP),K,
+     >              RSR2GGG,ISR2GGG)
+               CALL GLISSTRACEPAIR(NTRACE,'R2GPSI',SGI(IP),K,
+     >              RR2GPSI,IR2GPSI)
+               CALL GLISSTRACEPAIR(NTRACE,'SOR2GP',SGI(IP),K,
+     >              RSOR2GP,ISOR2GP)
+               CALL GLISSTRACEPAIR(NTRACE,'SR2OGP',SGI(IP),K,
+     >              RSR2OGP,ISR2OGP)
+               CALL GLISSTRACEPAIR(NTRACE,'R2GPGT',SGI(IP),K,
+     >              RR2GPGT,IR2GPGT)
+               CALL GLISSTRACEPAIR(NTRACE,'R4GPSI',SGI(IP),K,
+     >              RR4GPSI,IR4GPSI)
+               CALL GLISSTRACEPAIR(NTRACE,'R4GPGT',SGI(IP),K,
+     >              RR4GPGT,IR4GPGT)
+               CALL GLISSTRACEPAIR(NTRACE,'DSR2',SGI(IP),K,
+     >              RDSR2,IDSR2)
+               CALL GLISSTRACEPAIR(NTRACE,'DSGPSI',SGI(IP),K,
+     >              RDSGPSI,IDSGPSI)
+               CALL GLISSTRACEPAIR(NTRACE,'SR4GGG',SGI(IP),K,
+     >              RSR4GGG,ISR4GGG)
+               CALL GLISSTRACEPAIR(NTRACE,'R4GPT2',SGI(IP),K,
+     >              RR4GPT2,IR4GPT2)
+   45       CONTINUE
+   50    CONTINUE
+         CALL CONAMAT(NI,NZMA,ZMA)
+         DO 70 J=1,NZMA
+            DO 60 I=1,NZMA
+               WRITE(NTRACE,1007) 'A',NI,I,J,ZMA(I,J)
+   60       CONTINUE
+   70    CONTINUE
+         CALL CONBMAT(NI,NZMA,ZMA)
+         DO 90 J=1,NZMA
+            DO 80 I=1,NZMA
+               WRITE(NTRACE,1007) 'B',NI,I,J,ZMA(I,J)
+   80       CONTINUE
+   90    CONTINUE
+  100 CONTINUE
+C
+      DO 120 J=1,NG
+         DO 110 I=1,NBG
+            WRITE(NTRACE,1008) J,I,EV(I,J)
+  110    CONTINUE
+  120 CONTINUE
+      CLOSE(NTRACE,IOSTAT=IOS)
+      IF (IOS.NE.0) THEN
+         WRITE(NOUT,*) 'GLISS TRACE: CANNOT CLOSE fort.29, IOSTAT=',IOS
+         STOP 'GLISS TRACE OUTPUT FAILURE'
+      ENDIF
+      RETURN
+C
+ 1000 FORMAT('DIMENSIONS,',7(I8,:,','))
+ 1001 FORMAT('EQUILIBRIUM,',3(ES24.16E3,:,','))
+ 1002 FORMAT('MODE,',I8,',',ES24.16E3)
+ 1003 FORMAT('PROFILE,',I8,4(',',ES24.16E3))
+ 1004 FORMAT('Q1_SELECTION,',2(I8,','),2(ES24.16E3,:,','))
+ 1005 FORMAT('INTERVAL_SELECTION,',2(I8,','),2(ES24.16E3,:,','))
+ 1006 FORMAT('QUADRATURE,',2(I8,','),9(ES24.16E3,:,','))
+ 1007 FORMAT('MATRIX,',A1,3(',',I8),2(',',ES24.16E3))
+ 1008 FORMAT('VECTOR,',2(I8,','),2(ES24.16E3,:,','))
+      END
+************************************************************************
+*DECK GLISSTRACEPAIR
+      SUBROUTINE GLISSTRACEPAIR(NTRACE,CNAME,SVAL,K,RVAL,IVAL)
+C-----------------------------------------------------------------------
+C     TRACE ONE COMPLEX FOURIER-SPLINE COEFFICIENT AND ITS DERIVATIVE.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMIOD
+*CALL COMFFT
+C
+      INTEGER K,NTRACE
+      REAL ABLTGI(3),ABLTGR(3),IVAL(NP4,LANZ),RVAL(NP4,LANZ),SVAL
+      REAL VI,VR
+      CHARACTER*(*) CNAME
+C
+      VR=SPWERT(NPSI,SVAL,RVAL(1,K),RVAL(NP1,K),RVAL(N2P1,K),
+     >           RVAL(N3P1,K),CS,ABLTGR)
+      VI=SPWERT(NPSI,SVAL,IVAL(1,K),IVAL(NP1,K),IVAL(N2P1,K),
+     >           IVAL(N3P1,K),CS,ABLTGI)
+      WRITE(NTRACE,1000) CNAME,SVAL,K,VR,VI,ABLTGR(1),ABLTGI(1)
+      RETURN
+C
+ 1000 FORMAT('COEFFICIENT,',A,',',ES24.16E3,',',I8,
+     >       4(',',ES24.16E3))
       END
 ************************************************************************
 *DECK EIGVFK
@@ -6374,8 +6545,4 @@ C
    10 CONTINUE                                                         
       RETURN                                                            
       END                    
-
-
-
-
 

@@ -1035,7 +1035,7 @@ c	  WRITE(TXTOUT(1),10)
      >       ', HGA =',F7.3)
    32 FORMAT('           IPAI =',I2,' API =',F7.3,', BPI =',F7.3,
      >       ' CPI =',F7.3,' DPI =',F7.3,',')
-   33 FORMAT(9X'           EPI =',F7.3,', FPI =',F7.3,', GPI =',F7.3,
+   33 FORMAT(9X,'           EPI =',F7.3,', FPI =',F7.3,', GPI =',F7.3,
      >       ', HPI =',F7.3)
    34 FORMAT('           ICUR =',I2,' ACUR=',F7.3,', BCUR=',F7.3,
      >       ' CCUR=',F7.3,' DCUR=',F7.3,',')
@@ -1156,12 +1156,12 @@ c      NAMELIST/BALL/
    21 FORMAT(11X,'MFM = ',I4,', MHARM =',I4,', ISHAPE =',I2,
      >           ', ISOL =',I2,',')
    22 FORMAT(11X,'IMESH =',I3,', AMESH=',F6.4,', BMESH=',F6.4,',')
-   23 FORMAT(11X,'PAR1 = ',F8.4,', PAR2 = ',F8.4,', PAR3 = ',F8.4
+   23 FORMAT(11X,'PAR1 = ',F8.4,', PAR2 = ',F8.4,', PAR3 = ',F8.4,
      >          ', PAR4 = ',F8.4)
    24 FORMAT(11X,' FM(',I3,') = ',1PE12.4,',')
    30 FORMAT(/1X,'$PROFILE  IGAM =',I2,', AGA =',1PE12.4,', BGA =',
      >        E12.4,', CGA =',E12.4,',')
-   31 FORMAT(11X,'DGA =',1PE12.4,', EGA ='E12.4,', FGA =',E12.4,',')
+   31 FORMAT(11X,'DGA =',1PE12.4,', EGA =',E12.4,', FGA =',E12.4,',')
    32 FORMAT(11X,'GGA =',1PE12.4,', HGA =',E12.4,',')
    33 FORMAT(1X,'          IPAI =',I2,', API =',1PE12.4,', BPI =',
      >            E12.4,', CPI =',E12.4,',')
@@ -1182,7 +1182,7 @@ c      NAMELIST/BALL/
    50 FORMAT(/1X,'$NUM      NR =',I3,', NP =',I3,', NRMAP =',I3,
      >           ', NPMAP =',I3,', NCHI =',I3,', NITER = ',I3,',')
    55 FORMAT(11X,'NRCUR =',I3,', NPCUR =',I3,', NMESH = ',I4,',')
-   56 FORMAT(11X,'ERRCUR =',1PE8.2,', AMIX = ',0PF8.4',')  
+   56 FORMAT(11X,'ERRCUR =',1PE8.2,', AMIX = ',0PF8.4,',')
    57 FORMAT(11X,'ABB = ',F8.4,', BBB = ',F8.4,', NBB = ',I4,', AMPL =',
      >       F8.4)
    60 FORMAT(/1X,'$PRI      NPR1  =',I2,' $END ')

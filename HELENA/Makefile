@@ -1,7 +1,7 @@
 FC = gfortran
 LIBS = -llapack -lblas
 TITLE = helcode.exe
-OPTS = -fdefault-real-8 -fallow-argument-mismatch
+OPTS = -g -fbacktrace -ffpe-trap=invalid,zero,overflow -fdefault-real-8 -fallow-argument-mismatch
 OBJS = hel12a.o ppplib.o
 
 all: $(OBJS)
