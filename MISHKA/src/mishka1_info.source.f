@@ -5912,6 +5912,7 @@ C
       WRITE(NTRACE,'(A)') 'TRACE_VERSION,1'
       WRITE(NTRACE,1000) NG,NGINT,NPSI,NCHI,MANZ,NBG,NZMA
       WRITE(NTRACE,1001) CPSURF,ZNKWEL,NTOR
+      CALL GLISSTRACETOPOLOGY(NTRACE)
       DO 10 K=1,MANZ
          WRITE(NTRACE,1002) K,RFOUR(K)
    10 CONTINUE
@@ -6025,6 +6026,8 @@ C
    90    CONTINUE
   100 CONTINUE
 C
+      CALL GLISSTRACEQUADRATIC(NTRACE)
+C
       DO 120 J=1,NG
          DO 110 I=1,NBG
             WRITE(NTRACE,1008) J,I,EV(I,J)
@@ -6046,6 +6049,303 @@ C
  1006 FORMAT('QUADRATURE,',2(I8,','),9(ES24.16E3,:,','))
  1007 FORMAT('MATRIX,',A1,3(',',I8),2(',',ES24.16E3))
  1008 FORMAT('VECTOR,',2(I8,','),2(ES24.16E3,:,','))
+      END
+************************************************************************
+*DECK GLISSTRACETOPOLOGY
+      SUBROUTINE GLISSTRACETOPOLOGY(NTRACE)
+C-----------------------------------------------------------------------
+C     TRACE THE ACTUAL LOCAL BASIS SCATTER AND ENDPOINT CONSTRAINTS.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+*CALL COMWEL
+C
+      INTEGER BASIS, IM, NTRACE, POINT, SLOT, NODE
+      REAL HC(4), HQ(4), SVAL
+C
+      DO 20 BASIS=1,4
+         IF (BASIS.EQ.1 .OR. BASIS.EQ.3) THEN
+            NODE=1
+         ELSE
+            NODE=0
+         ENDIF
+         IF (BASIS.LE.2) THEN
+            SLOT=1
+         ELSE
+            SLOT=2
+         ENDIF
+         WRITE(NTRACE,1000) 'CUB',BASIS,NODE,SLOT
+         WRITE(NTRACE,1000) 'QUA',BASIS,NODE,SLOT
+   20 CONTINUE
+C
+      DO 40 POINT=0,2
+         SVAL=0.5*POINT
+         CALL CUBFCT(SVAL,0.0,1.0,HC)
+         CALL QUAFCT(SVAL,0.0,1.0,HQ)
+         DO 30 BASIS=1,4
+            WRITE(NTRACE,1001) 'CUB',POINT,BASIS,SVAL,HC(BASIS)
+            WRITE(NTRACE,1001) 'QUA',POINT,BASIS,SVAL,HQ(BASIS)
+   30    CONTINUE
+   40 CONTINUE
+C
+      DO 50 IM=1,MANZ
+         WRITE(NTRACE,1002) IM,RFOUR(IM),1,
+     >        MERGE(1,0,ABS(RFOUR(IM)).GT.1.1),1,
+     >        MERGE(1,0,ABS(RFOUR(IM)).GT.1.1)
+         WRITE(NTRACE,1003) IM,RFOUR(IM),
+     >        MERGE(0,1,RWALL.GT.1.0)
+   50 CONTINUE
+      RETURN
+C
+ 1000 FORMAT('RADIAL_DOF,',A3,3(',',I8))
+ 1001 FORMAT('BASIS_SAMPLE,',A3,2(',',I8),2(',',ES24.16E3))
+ 1002 FORMAT('AXIS_CONSTRAINT,',I8,',',ES24.16E3,4(',',I8))
+ 1003 FORMAT('EDGE_CONSTRAINT,',I8,',',ES24.16E3,',',I8)
+      END
+************************************************************************
+*DECK GLISSTRACEQUADRATIC
+      SUBROUTINE GLISSTRACEQUADRATIC(NTRACE)
+C-----------------------------------------------------------------------
+C     TRACE EVERY CELL CONTRIBUTION OF THE CONVERGED EIGENVECTOR.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+*CALL COMP234
+*CALL CORE234D
+*CALL COMGRID
+*CALL COMIT
+C
+      INTEGER FULLTRACE, I, J, NTRACE, NI
+      COMPLEX*16 ABLK(2,2), AH, AS, BBLK(2,2), BH, BS
+      COMPLEX*16 ATBLK(2,2), ATH, ATS, BTBLK(2,2), BTH, BTS
+      COMPLEX*16 AX(NBG,NGMAX), AXC(NBG,NGMAX)
+      COMPLEX*16 BX(NBG,NGMAX), BXC(NBG,NGMAX), LAMH, LAMEW
+      COMPLEX XV(NZMA)
+      CHARACTER*32 FULLENV
+C
+      FULLENV=' '
+      CALL GETENV('GLISS_MISHKA_FULL_MATRIX',FULLENV)
+      FULLTRACE=0
+      IF (FULLENV.NE.' ') THEN
+         IF (FULLENV.NE.'1') THEN
+            WRITE(*,*) 'GLISS_MISHKA_FULL_MATRIX MUST BE 1 OR UNSET'
+            STOP 2
+         ENDIF
+         FULLTRACE=1
+      ENDIF
+      WRITE(NTRACE,1002) FULLTRACE
+      ATH=(0.0,0.0)
+      ATS=(0.0,0.0)
+      BTH=(0.0,0.0)
+      BTS=(0.0,0.0)
+      DO 10 J=1,2
+         DO 10 I=1,2
+            ATBLK(I,J)=(0.0,0.0)
+            BTBLK(I,J)=(0.0,0.0)
+   10 CONTINUE
+      DO 15 J=1,NG
+         DO 15 I=1,NBG
+            AX(I,J)=(0.0,0.0)
+            AXC(I,J)=(0.0,0.0)
+            BX(I,J)=(0.0,0.0)
+            BXC(I,J)=(0.0,0.0)
+   15 CONTINUE
+C
+      DO 50 NI=1,NGINT
+         DO 20 I=1,NBG
+            XV(I)=EV(I,NI)
+            XV(NBG+I)=EV(I,NI+1)
+   20    CONTINUE
+         CALL CONAMAT(NI,NZMA,ZMA)
+         IF (NG.LE.101 .OR. FULLTRACE.EQ.1)
+     >      CALL GLISSTRACEFULLMATRIX(NTRACE,'A',NI,ZMA)
+         CALL GLISSTRACEONEQUAD(NTRACE,'A',NI,XV,ZMA,AH,AS,ABLK)
+         CALL GLISSTRACEACTION(NI,XV,ZMA,AX)
+         DO 25 I=1,NZMA
+            XV(I)=CONJG(XV(I))
+   25    CONTINUE
+         CALL GLISSTRACEACTION(NI,XV,ZMA,AXC)
+         DO 26 I=1,NZMA
+            XV(I)=CONJG(XV(I))
+   26    CONTINUE
+         ATH=ATH+AH
+         ATS=ATS+AS
+         CALL CONBMAT(NI,NZMA,ZMA)
+         IF (NG.LE.101 .OR. FULLTRACE.EQ.1)
+     >      CALL GLISSTRACEFULLMATRIX(NTRACE,'B',NI,ZMA)
+         CALL GLISSTRACEONEQUAD(NTRACE,'B',NI,XV,ZMA,BH,BS,BBLK)
+         CALL GLISSTRACEACTION(NI,XV,ZMA,BX)
+         DO 27 I=1,NZMA
+            XV(I)=CONJG(XV(I))
+   27    CONTINUE
+         CALL GLISSTRACEACTION(NI,XV,ZMA,BXC)
+         DO 28 I=1,NZMA
+            XV(I)=CONJG(XV(I))
+   28    CONTINUE
+         BTH=BTH+BH
+         BTS=BTS+BS
+         DO 40 J=1,2
+            DO 30 I=1,2
+               ATBLK(I,J)=ATBLK(I,J)+ABLK(I,J)
+               BTBLK(I,J)=BTBLK(I,J)+BBLK(I,J)
+   30       CONTINUE
+   40    CONTINUE
+   50 CONTINUE
+C
+      WRITE(NTRACE,1000) 'A',ATH,ATS
+      WRITE(NTRACE,1000) 'B',BTH,BTS
+      LAMH=ATH/BTH
+      LAMEW=DCMPLX(EW)
+      CALL GLISSTRACERESIDUAL(NTRACE,'RAYLEIGH',LAMH,AX,BX)
+      CALL GLISSTRACERESIDUAL(NTRACE,'EIGENVALUE',LAMEW,AX,BX)
+      CALL GLISSTRACERESIDUAL(NTRACE,'CONJUGATED',LAMEW,AXC,BXC)
+      DO 70 J=1,2
+         DO 60 I=1,2
+            WRITE(NTRACE,1001) 'A',I,J,ATBLK(I,J)
+            WRITE(NTRACE,1001) 'B',I,J,BTBLK(I,J)
+   60    CONTINUE
+   70 CONTINUE
+      RETURN
+C
+ 1000 FORMAT('TOTAL_QUADRATIC,',A1,4(',',ES24.16E3))
+ 1001 FORMAT('TOTAL_BLOCK,',A1,2(',',I8),2(',',ES24.16E3))
+ 1002 FORMAT('TRACE_OPTION,FULL_MATRIX,',I8)
+      END
+************************************************************************
+*DECK GLISSTRACEFULLMATRIX
+      SUBROUTINE GLISSTRACEFULLMATRIX(NTRACE,CNAME,NI,ZMA)
+C-----------------------------------------------------------------------
+C     DUMP ALL LOCAL MATRICES ONLY FOR BOUNDED SMALL-MESH DEBUG RUNS.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+C
+      INTEGER I, J, NTRACE, NI
+      COMPLEX ZMA(NZMA,NZMA)
+      CHARACTER*1 CNAME
+C
+      DO 20 J=1,NZMA
+         DO 10 I=1,NZMA
+            WRITE(NTRACE,1000) CNAME,NI,I,J,ZMA(I,J)
+   10    CONTINUE
+   20 CONTINUE
+      RETURN
+C
+ 1000 FORMAT('FULL_MATRIX,',A1,3(',',I8),2(',',ES24.16E3))
+      END
+************************************************************************
+*DECK GLISSTRACEACTION
+      SUBROUTINE GLISSTRACEACTION(NI,XV,ZMA,ACTION)
+C-----------------------------------------------------------------------
+C     SCATTER ONE LOCAL MATRIX-VECTOR PRODUCT TO THE GLOBAL NODAL VIEW.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+C
+      INTEGER GI, I, J, NI, SLOT
+      COMPLEX XV(NZMA), ZMA(NZMA,NZMA)
+      COMPLEX*16 ACTION(NBG,NGMAX), VALUE
+C
+      DO 20 I=1,NZMA
+         GI=NI
+         SLOT=I
+         IF (I.GT.NBG) THEN
+            GI=NI+1
+            SLOT=I-NBG
+         ENDIF
+         VALUE=(0.0,0.0)
+         DO 10 J=1,NZMA
+            VALUE=VALUE+DCMPLX(ZMA(I,J))*DCMPLX(XV(J))
+   10    CONTINUE
+         ACTION(SLOT,GI)=ACTION(SLOT,GI)+VALUE
+   20 CONTINUE
+      RETURN
+      END
+************************************************************************
+*DECK GLISSTRACERESIDUAL
+      SUBROUTINE GLISSTRACERESIDUAL(NTRACE,CNAME,LAMBDA,AX,BX)
+C-----------------------------------------------------------------------
+C     TRACE THE GLOBAL GENERALIZED-EIGENPAIR RESIDUAL IN DOUBLE PRECISION.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+*CALL COMGRID
+C
+      INTEGER I, J, NTRACE
+      COMPLEX*16 AX(NBG,NGMAX), BX(NBG,NGMAX), LAMBDA, VALUE
+      DOUBLE PRECISION ANORM, BNORM, RNORM, SCALE
+      CHARACTER*(*) CNAME
+C
+      ANORM=0.0D0
+      BNORM=0.0D0
+      RNORM=0.0D0
+      DO 10 J=1,NG
+         DO 10 I=1,NBG
+            VALUE=AX(I,J)-LAMBDA*BX(I,J)
+            ANORM=ANORM+ABS(AX(I,J))**2
+            BNORM=BNORM+ABS(BX(I,J))**2
+            RNORM=RNORM+ABS(VALUE)**2
+   10 CONTINUE
+      ANORM=SQRT(ANORM)
+      BNORM=SQRT(BNORM)
+      RNORM=SQRT(RNORM)
+      SCALE=ANORM+ABS(LAMBDA)*BNORM
+      WRITE(NTRACE,1000) CNAME,LAMBDA,ANORM,BNORM,RNORM,
+     >                   RNORM/SCALE
+      RETURN
+C
+ 1000 FORMAT('GLOBAL_RESIDUAL,',A,6(',',ES24.16E3))
+      END
+************************************************************************
+*DECK GLISSTRACEONEQUAD
+      SUBROUTINE GLISSTRACEONEQUAD(NTRACE,CNAME,NI,XV,ZMA,
+     >                             QH,QS,QBLK)
+C-----------------------------------------------------------------------
+C     COMPUTE ONE LOCAL HERMITIAN AND LEGACY BILINEAR QUADRATIC FORM.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+C
+      INTEGER CI, CJ, I, J, NTRACE, NI
+      COMPLEX XV(NZMA), ZMA(NZMA,NZMA)
+      COMPLEX*16 QBLK(2,2), QH, QS, TERM
+      CHARACTER*1 CNAME
+C
+      QH=(0.0,0.0)
+      QS=(0.0,0.0)
+      DO 10 J=1,2
+         DO 10 I=1,2
+            QBLK(I,J)=(0.0,0.0)
+   10 CONTINUE
+      DO 30 J=1,NZMA
+         CJ=1
+         IF (MOD(J-1,NBG).GE.2*MANZ) CJ=2
+         DO 20 I=1,NZMA
+            CI=1
+            IF (MOD(I-1,NBG).GE.2*MANZ) CI=2
+            TERM=DCONJG(DCMPLX(XV(I)))*DCMPLX(ZMA(I,J))*
+     >           DCMPLX(XV(J))
+            QH=QH+TERM
+            QS=QS+DCMPLX(XV(I))*DCMPLX(ZMA(I,J))*DCMPLX(XV(J))
+            QBLK(CI,CJ)=QBLK(CI,CJ)+TERM
+   20    CONTINUE
+   30 CONTINUE
+      WRITE(NTRACE,1000) CNAME,NI,QH,QS
+      DO 50 J=1,2
+         DO 40 I=1,2
+            WRITE(NTRACE,1001) CNAME,NI,I,J,QBLK(I,J)
+   40    CONTINUE
+   50 CONTINUE
+      RETURN
+C
+ 1000 FORMAT('CELL_QUADRATIC,',A1,',',I8,4(',',ES24.16E3))
+ 1001 FORMAT('CELL_BLOCK,',A1,3(',',I8),2(',',ES24.16E3))
       END
 ************************************************************************
 *DECK GLISSTRACEPAIR

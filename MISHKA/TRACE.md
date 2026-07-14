@@ -34,6 +34,20 @@ The trace contains comma-separated records:
 - `MATRIX` gives every entry of the local stiffness (`A`) and mass (`B`)
   matrices in the same two-dimensional `ZMA` view used by the solver.
 - `VECTOR` gives every component of the converged radial eigenvector.
+- `RADIAL_DOF`, `BASIS_SAMPLE`, `AXIS_CONSTRAINT`, and `EDGE_CONSTRAINT`
+  expose the cubic/quadratic scatter and the boundary slots actually used by
+  the legacy assembly.
+- `CELL_QUADRATIC` and `CELL_BLOCK` give the Hermitian and legacy-bilinear
+  contributions of every radial cell. `TOTAL_QUADRATIC`, `TOTAL_BLOCK`, and
+  `GLOBAL_RESIDUAL` independently audit the printed eigenpair. These
+  diagnostic reductions use complex double precision; the solver and its ABI
+  remain single precision.
+
+For meshes with at most 101 radial nodes, `FULL_MATRIX` records also contain
+every local matrix. Set `GLISS_MISHKA_FULL_MATRIX=1` to request those records
+on a larger mesh. Any other nonempty value is rejected. Full-matrix output is
+intended for bounded, scripted debugging in external storage, not for normal
+regression artifacts.
 
 The MISHKA build intentionally uses default `REAL` and `COMPLEX` kinds. This
 matches the single-precision BLAS routines and the bundled MISHKA library ABI.
