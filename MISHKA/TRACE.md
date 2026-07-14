@@ -49,6 +49,19 @@ on a larger mesh. Any other nonempty value is rejected. Full-matrix output is
 intended for bounded, scripted debugging in external storage, not for normal
 regression artifacts.
 
+Set `GLISS_MISHKA_ITER_RESIDUAL=1` to write a `GLISS_ITER_RESIDUAL` line to
+`fort.20` after every shift-invert iteration. Each line contains the proposed
+eigenvalue, norms of `A x`, `B x`, and `A x - lambda B x`, the normwise relative
+residual, the residual-gate status and tolerance, and the radial node with the
+largest residual block. Any other nonempty value is rejected.
+
+Set `GLISS_MISHKA_RESIDUAL_TOL` to a finite number in `(0, 1]` to make that
+residual a convergence requirement. The usual eigenvalue-correction test must
+then pass together with the requested residual tolerance. If the iteration
+limit is reached first, MISHKA exits with a nonzero status instead of emitting
+an uncertified result. Setting the tolerance also enables the per-iteration
+lines, so a failed run retains the evidence needed to locate the problem.
+
 The MISHKA build intentionally uses default `REAL` and `COMPLEX` kinds. This
 matches the single-precision BLAS routines and the bundled MISHKA library ABI.
 HELENA remains double precision. Floating-point traps and backtraces are enabled
