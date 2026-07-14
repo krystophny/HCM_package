@@ -21,10 +21,14 @@ The trace contains comma-separated records:
 - `DIMENSIONS`, `EQUILIBRIUM`, and `MODE` describe the run.
 - `PROFILE` gives the radial coordinate, safety factor, pressure, and toroidal
   field function at every HELENA mapping surface.
-- `Q1_SELECTION` identifies the profile surface nearest `q = 1` and the MISHKA
-  cell containing it.
+- `Q1_SELECTION` identifies the profile surface nearest `q = 1` and its
+  selected MISHKA cell.
+- `INTERVAL_SELECTION` identifies eight strictly ordered trace cells: the
+  cells nearest normalized poloidal radii 0.10, 0.25, 0.40, 0.55, 0.70, 0.85,
+  and 0.95, plus the cell nearest `q = 1` between the 0.40 and 0.55 cells.
 - `QUADRATURE` gives the equilibrium quantities used at each Gaussian point in
-  the selected axis, `q = 1`, and edge cells.
+  every selected cell. The interior targets avoid treating a half-mesh sample
+  as either the magnetic axis or plasma edge.
 - `COEFFICIENT` gives each complex Fourier-spline coefficient and its radial
   derivative at those points.
 - `MATRIX` gives every entry of the local stiffness (`A`) and mass (`B`)

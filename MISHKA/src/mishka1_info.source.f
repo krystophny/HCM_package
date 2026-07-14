@@ -5896,9 +5896,11 @@ C
 *CALL COMFFT
 *CALL COMEQV
 C
-      INTEGER I, IOS, IP, IQ1, ISEL(3), J, K, L, NI, NSEL, NTRACE
-      REAL DIST, DMID, SREF
+      INTEGER I, IOS, IP, IQ1, ISEL(8), J, K, L, NI, NSEL, NTRACE
+      INTEGER TARGET_INDEX, USED
+      REAL DIST, DMID, SREF, TARGET(7)
       PARAMETER (NTRACE=29)
+      DATA TARGET/0.10,0.25,0.40,0.55,0.70,0.85,0.95/
 C
       OPEN(UNIT=NTRACE,FILE='fort.29',STATUS='REPLACE',ACTION='WRITE',
      >     IOSTAT=IOS)
@@ -5923,27 +5925,51 @@ C
          IF (ABS(QS(I)-1.0).LT.DIST) THEN
             IQ1=I
             DIST=ABS(QS(I)-1.0)
-         ENDIF
+      ENDIF
    30 CONTINUE
       SREF=CS(IQ1)
-      ISEL(1)=1
-      ISEL(2)=1
+      DO 35 L=1,8
+         ISEL(L)=0
+   35 CONTINUE
+      ISEL(4)=1
       DMID=ABS(0.5*(SGRID(1)+SGRID(2))-SREF)
       DO 40 NI=2,NGINT
          DIST=ABS(0.5*(SGRID(NI)+SGRID(NI+1))-SREF)
          IF (DIST.LT.DMID) THEN
-            ISEL(2)=NI
+            ISEL(4)=NI
             DMID=DIST
          ENDIF
    40 CONTINUE
-      ISEL(3)=NGINT
-      WRITE(NTRACE,1004) IQ1,ISEL(2),SREF,QS(IQ1)
+      TARGET_INDEX=0
+      DO 55 L=1,8
+         IF (L.EQ.4) GOTO 55
+         TARGET_INDEX=TARGET_INDEX+1
+         ISEL(L)=0
+         DMID=1.0E30
+         DO 42 NI=1,NGINT
+            USED=0
+            DO 41 J=1,8
+               IF (ISEL(J).EQ.NI) USED=1
+   41       CONTINUE
+            IF (USED.NE.0) GOTO 42
+            DIST=ABS(0.5*(SGRID(NI)+SGRID(NI+1))-
+     >           TARGET(TARGET_INDEX))
+            IF (DIST.LT.DMID) THEN
+               ISEL(L)=NI
+               DMID=DIST
+            ENDIF
+   42    CONTINUE
+         IF (ISEL(L).EQ.0) STOP 'GLISS TRACE CELL SELECTION FAILURE'
+   55 CONTINUE
+      DO 57 L=2,8
+         IF (ISEL(L).LE.ISEL(L-1))
+     >      STOP 'GLISS TRACE Q=1 OUTSIDE TARGET BAND'
+   57 CONTINUE
+      WRITE(NTRACE,1004) IQ1,ISEL(4),SREF,QS(IQ1)
 C
       NSEL=0
-      DO 100 L=1,3
+      DO 100 L=1,8
          NI=ISEL(L)
-         IF (L.GT.1.AND.NI.EQ.ISEL(L-1)) GOTO 100
-         IF (L.EQ.3.AND.NI.EQ.ISEL(1)) GOTO 100
          NSEL=NSEL+1
          WRITE(NTRACE,1005) NSEL,NI,SGRID(NI),SGRID(NI+1)
          DO 50 I=1,4
@@ -6545,4 +6571,3 @@ C
    10 CONTINUE                                                         
       RETURN                                                            
       END                    
-
