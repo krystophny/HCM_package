@@ -5087,7 +5087,7 @@ C
 C      
       RETURN
 C
-   11 FORMAT(1X,' IT : ',I2,' EIGENVALUE : ',1P,2E12.4,
+   11 FORMAT(1X,' IT : ',I4,' EIGENVALUE : ',1P,2E12.4,
      >       '   REL. CHANGE : ',E12.4)
    12 FORMAT(' GLISS_SHIFT_TRACE ',I3,1P,10E16.8,0P)
    21 FORMAT(' STOPPED AFTER ',I4,' ITERATIONS')
@@ -5105,12 +5105,13 @@ C
 *CALL COMPIO
 *CALL COMGRID
 C
-      INTEGER ACTIVE, I, IOS, ITERATION, J, MAXNODE, NI, NZMAIN
+      INTEGER ACTIVE, GLISSRK, I, IOS, ITERATION, J, MAXNODE, NI, NZMAIN
       INTEGER RESIDUALSTATUS
+      PARAMETER (GLISSRK=MAX(KIND(1.0),KIND(1.0D0)))
       COMPLEX EV(NBG,*), LAMBDA, XV(NZMA), ZMA(NZMA,NZMA)
-      COMPLEX*16 AX(NBG,NGMAX), BX(NBG,NGMAX), VALUE
-      DOUBLE PRECISION ANORM, BNORM, MAXNORM, RELATIVE, RNODE, RNORM
-      DOUBLE PRECISION SCALE, TOLERANCE
+      COMPLEX(KIND=GLISSRK) AX(NBG,NGMAX), BX(NBG,NGMAX), VALUE
+      REAL(KIND=GLISSRK) ANORM, BNORM, MAXNORM, RELATIVE, RNODE
+      REAL(KIND=GLISSRK) RNORM, SCALE, TOLERANCE
       CHARACTER*32 TOLENV, TRACEENV
 C
       RESIDUALSTATUS=-1
@@ -5167,7 +5168,7 @@ C
       DO 60 J=1,NG
          RNODE=0.0D0
          DO 50 I=1,NBG
-            VALUE=AX(I,J)-DCMPLX(LAMBDA)*BX(I,J)
+            VALUE=AX(I,J)-CMPLX(LAMBDA,KIND=GLISSRK)*BX(I,J)
             ANORM=ANORM+ABS(AX(I,J))**2
             BNORM=BNORM+ABS(BX(I,J))**2
             RNORM=RNORM+ABS(VALUE)**2
@@ -5182,7 +5183,7 @@ C
       ANORM=SQRT(ANORM)
       BNORM=SQRT(BNORM)
       RNORM=SQRT(RNORM)
-      SCALE=ANORM+ABS(DCMPLX(LAMBDA))*BNORM
+      SCALE=ANORM+ABS(CMPLX(LAMBDA,KIND=GLISSRK))*BNORM
       IF (SCALE.GT.0.0D0) THEN
          RELATIVE=RNORM/SCALE
       ELSE IF (RNORM.EQ.0.0D0) THEN
@@ -5816,6 +5817,7 @@ C
      >         BDB(MANZ), BDBV(MANZ), RHO1(MANZ), T1(MANZ),
      >         B3L(MANZ)
       COMPLEX  OOR2, PSOR2, PTOR2
+      COMPLEX  EVCLEAN(NBG)
       REAL     DUMMY(3),ABLTG(3)
 C
       EXTERNAL CONAMAT, CONBMAT
@@ -5832,16 +5834,15 @@ c-----------------------------------------------------------------------
       write(22,12) ng,manz,ngl
       write(22,11) (rfour(m),m=1,manz)
       write(22,11) (sgrid(i),i=1,ng)
-      do 5 i=1,ng
-      do 5 j=1,nbg
-        rev = real(ev(j,i))
-        zev = imag(ev(j,i))
-        if (abs(rev).lt.1.e-20) rev=0.
-        if (abs(zev).lt.1.e-20) zev=0.
-        ev(j,i) = rev + (0.,1.)*zev
-    5 continue    
       do 10 i=1,ng
-        write(22,11) (ev(j,i),j=1,nbg)
+        do 5 j=1,nbg
+          rev = real(ev(j,i))
+          zev = imag(ev(j,i))
+          if (abs(rev).lt.1.e-20) rev=0.
+          if (abs(zev).lt.1.e-20) zev=0.
+          evclean(j) = cmplx(rev,zev)
+    5   continue
+        write(22,11) (evclean(j),j=1,nbg)
    10 continue
    11 format(4e16.8)
    12 format(3i8)
@@ -6160,14 +6161,14 @@ C
       RETURN
 C
  1000 FORMAT('DIMENSIONS,',7(I8,:,','))
- 1001 FORMAT('EQUILIBRIUM,',3(ES24.16E3,:,','))
- 1002 FORMAT('MODE,',I8,',',ES24.16E3)
- 1003 FORMAT('PROFILE,',I8,4(',',ES24.16E3))
- 1004 FORMAT('Q1_SELECTION,',2(I8,','),2(ES24.16E3,:,','))
- 1005 FORMAT('INTERVAL_SELECTION,',2(I8,','),2(ES24.16E3,:,','))
- 1006 FORMAT('QUADRATURE,',2(I8,','),9(ES24.16E3,:,','))
- 1007 FORMAT('MATRIX,',A1,3(',',I8),2(',',ES24.16E3))
- 1008 FORMAT('VECTOR,',2(I8,','),2(ES24.16E3,:,','))
+ 1001 FORMAT('EQUILIBRIUM,',3(ES44.34E4,:,','))
+ 1002 FORMAT('MODE,',I8,',',ES44.34E4)
+ 1003 FORMAT('PROFILE,',I8,4(',',ES44.34E4))
+ 1004 FORMAT('Q1_SELECTION,',2(I8,','),2(ES44.34E4,:,','))
+ 1005 FORMAT('INTERVAL_SELECTION,',2(I8,','),2(ES44.34E4,:,','))
+ 1006 FORMAT('QUADRATURE,',2(I8,','),9(ES44.34E4,:,','))
+ 1007 FORMAT('MATRIX,',A1,3(',',I8),2(',',ES44.34E4))
+ 1008 FORMAT('VECTOR,',2(I8,','),2(ES44.34E4,:,','))
       END
 ************************************************************************
 *DECK GLISSTRACETOPOLOGY
@@ -6218,9 +6219,9 @@ C
       RETURN
 C
  1000 FORMAT('RADIAL_DOF,',A3,3(',',I8))
- 1001 FORMAT('BASIS_SAMPLE,',A3,2(',',I8),2(',',ES24.16E3))
- 1002 FORMAT('AXIS_CONSTRAINT,',I8,',',ES24.16E3,4(',',I8))
- 1003 FORMAT('EDGE_CONSTRAINT,',I8,',',ES24.16E3,',',I8)
+ 1001 FORMAT('BASIS_SAMPLE,',A3,2(',',I8),2(',',ES44.34E4))
+ 1002 FORMAT('AXIS_CONSTRAINT,',I8,',',ES44.34E4,4(',',I8))
+ 1003 FORMAT('EDGE_CONSTRAINT,',I8,',',ES44.34E4,',',I8)
       END
 ************************************************************************
 *DECK GLISSTRACEQUADRATIC
@@ -6236,11 +6237,13 @@ C
 *CALL COMGRID
 *CALL COMIT
 C
-      INTEGER FULLTRACE, I, J, NTRACE, NI
-      COMPLEX*16 ABLK(2,2), AH, AS, BBLK(2,2), BH, BS
-      COMPLEX*16 ATBLK(2,2), ATH, ATS, BTBLK(2,2), BTH, BTS
-      COMPLEX*16 AX(NBG,NGMAX), AXC(NBG,NGMAX)
-      COMPLEX*16 BX(NBG,NGMAX), BXC(NBG,NGMAX), LAMH, LAMEW
+      INTEGER FULLTRACE, GLISSRK, I, J, NTRACE, NI
+      PARAMETER (GLISSRK=MAX(KIND(1.0),KIND(1.0D0)))
+      COMPLEX(KIND=GLISSRK) ABLK(2,2), AH, AS, BBLK(2,2), BH, BS
+      COMPLEX(KIND=GLISSRK) ATBLK(2,2), ATH, ATS, BTBLK(2,2)
+      COMPLEX(KIND=GLISSRK) BTH, BTS, AX(NBG,NGMAX), AXC(NBG,NGMAX)
+      COMPLEX(KIND=GLISSRK) BX(NBG,NGMAX), BXC(NBG,NGMAX)
+      COMPLEX(KIND=GLISSRK) LAMH, LAMEW
       COMPLEX XV(NZMA)
       CHARACTER*32 FULLENV
 C
@@ -6316,7 +6319,7 @@ C
       WRITE(NTRACE,1000) 'A',ATH,ATS
       WRITE(NTRACE,1000) 'B',BTH,BTS
       LAMH=ATH/BTH
-      LAMEW=DCMPLX(EW)
+      LAMEW=CMPLX(EW,KIND=GLISSRK)
       CALL GLISSTRACERESIDUAL(NTRACE,'RAYLEIGH',LAMH,AX,BX)
       CALL GLISSTRACERESIDUAL(NTRACE,'EIGENVALUE',LAMEW,AX,BX)
       CALL GLISSTRACERESIDUAL(NTRACE,'CONJUGATED',LAMEW,AXC,BXC)
@@ -6328,8 +6331,8 @@ C
    70 CONTINUE
       RETURN
 C
- 1000 FORMAT('TOTAL_QUADRATIC,',A1,4(',',ES24.16E3))
- 1001 FORMAT('TOTAL_BLOCK,',A1,2(',',I8),2(',',ES24.16E3))
+ 1000 FORMAT('TOTAL_QUADRATIC,',A1,4(',',ES44.34E4))
+ 1001 FORMAT('TOTAL_BLOCK,',A1,2(',',I8),2(',',ES44.34E4))
  1002 FORMAT('TRACE_OPTION,FULL_MATRIX,',I8)
       END
 ************************************************************************
@@ -6353,7 +6356,7 @@ C
    20 CONTINUE
       RETURN
 C
- 1000 FORMAT('FULL_MATRIX,',A1,3(',',I8),2(',',ES24.16E3))
+ 1000 FORMAT('FULL_MATRIX,',A1,3(',',I8),2(',',ES44.34E4))
       END
 ************************************************************************
 *DECK GLISSTRACEACTION
@@ -6365,9 +6368,10 @@ C
 *CALL COMMAX
 *CALL COMPAR
 C
-      INTEGER GI, I, J, NI, SLOT
+      INTEGER GI, GLISSRK, I, J, NI, SLOT
+      PARAMETER (GLISSRK=MAX(KIND(1.0),KIND(1.0D0)))
       COMPLEX XV(NZMA), ZMA(NZMA,NZMA)
-      COMPLEX*16 ACTION(NBG,NGMAX), VALUE
+      COMPLEX(KIND=GLISSRK) ACTION(NBG,NGMAX), VALUE
 C
       DO 20 I=1,NZMA
          GI=NI
@@ -6378,7 +6382,8 @@ C
          ENDIF
          VALUE=(0.0,0.0)
          DO 10 J=1,NZMA
-            VALUE=VALUE+DCMPLX(ZMA(I,J))*DCMPLX(XV(J))
+            VALUE=VALUE+CMPLX(ZMA(I,J),KIND=GLISSRK)*
+     >                  CMPLX(XV(J),KIND=GLISSRK)
    10    CONTINUE
          ACTION(SLOT,GI)=ACTION(SLOT,GI)+VALUE
    20 CONTINUE
@@ -6388,16 +6393,18 @@ C
 *DECK GLISSTRACERESIDUAL
       SUBROUTINE GLISSTRACERESIDUAL(NTRACE,CNAME,LAMBDA,AX,BX)
 C-----------------------------------------------------------------------
-C     TRACE THE GLOBAL GENERALIZED-EIGENPAIR RESIDUAL IN DOUBLE PRECISION.
+C     TRACE THE GLOBAL GENERALIZED-EIGENPAIR RESIDUAL WITHOUT DOWNCASTING.
 C-----------------------------------------------------------------------
 C
 *CALL COMMAX
 *CALL COMPAR
 *CALL COMGRID
 C
-      INTEGER I, J, NTRACE
-      COMPLEX*16 AX(NBG,NGMAX), BX(NBG,NGMAX), LAMBDA, VALUE
-      DOUBLE PRECISION ANORM, BNORM, RNORM, SCALE
+      INTEGER GLISSRK, I, J, NTRACE
+      PARAMETER (GLISSRK=MAX(KIND(1.0),KIND(1.0D0)))
+      COMPLEX(KIND=GLISSRK) AX(NBG,NGMAX), BX(NBG,NGMAX)
+      COMPLEX(KIND=GLISSRK) LAMBDA, VALUE
+      REAL(KIND=GLISSRK) ANORM, BNORM, RNORM, SCALE
       CHARACTER*(*) CNAME
 C
       ANORM=0.0D0
@@ -6418,7 +6425,7 @@ C
      >                   RNORM/SCALE
       RETURN
 C
- 1000 FORMAT('GLOBAL_RESIDUAL,',A,6(',',ES24.16E3))
+ 1000 FORMAT('GLOBAL_RESIDUAL,',A,6(',',ES44.34E4))
       END
 ************************************************************************
 *DECK GLISSTRACEONEQUAD
@@ -6431,9 +6438,10 @@ C
 *CALL COMMAX
 *CALL COMPAR
 C
-      INTEGER CI, CJ, I, J, NTRACE, NI
+      INTEGER CI, CJ, GLISSRK, I, J, NTRACE, NI
+      PARAMETER (GLISSRK=MAX(KIND(1.0),KIND(1.0D0)))
       COMPLEX XV(NZMA), ZMA(NZMA,NZMA)
-      COMPLEX*16 QBLK(2,2), QH, QS, TERM
+      COMPLEX(KIND=GLISSRK) QBLK(2,2), QH, QS, TERM
       CHARACTER*1 CNAME
 C
       QH=(0.0,0.0)
@@ -6448,10 +6456,13 @@ C
          DO 20 I=1,NZMA
             CI=1
             IF (MOD(I-1,NBG).GE.2*MANZ) CI=2
-            TERM=DCONJG(DCMPLX(XV(I)))*DCMPLX(ZMA(I,J))*
-     >           DCMPLX(XV(J))
+            TERM=CONJG(CMPLX(XV(I),KIND=GLISSRK))*
+     >           CMPLX(ZMA(I,J),KIND=GLISSRK)*
+     >           CMPLX(XV(J),KIND=GLISSRK)
             QH=QH+TERM
-            QS=QS+DCMPLX(XV(I))*DCMPLX(ZMA(I,J))*DCMPLX(XV(J))
+            QS=QS+CMPLX(XV(I),KIND=GLISSRK)*
+     >           CMPLX(ZMA(I,J),KIND=GLISSRK)*
+     >           CMPLX(XV(J),KIND=GLISSRK)
             QBLK(CI,CJ)=QBLK(CI,CJ)+TERM
    20    CONTINUE
    30 CONTINUE
@@ -6463,8 +6474,8 @@ C
    50 CONTINUE
       RETURN
 C
- 1000 FORMAT('CELL_QUADRATIC,',A1,',',I8,4(',',ES24.16E3))
- 1001 FORMAT('CELL_BLOCK,',A1,3(',',I8),2(',',ES24.16E3))
+ 1000 FORMAT('CELL_QUADRATIC,',A1,',',I8,4(',',ES44.34E4))
+ 1001 FORMAT('CELL_BLOCK,',A1,3(',',I8),2(',',ES44.34E4))
       END
 ************************************************************************
 *DECK GLISSTRACEPAIR
@@ -6489,8 +6500,8 @@ C
       WRITE(NTRACE,1000) CNAME,SVAL,K,VR,VI,ABLTGR(1),ABLTGI(1)
       RETURN
 C
- 1000 FORMAT('COEFFICIENT,',A,',',ES24.16E3,',',I8,
-     >       4(',',ES24.16E3))
+ 1000 FORMAT('COEFFICIENT,',A,',',ES44.34E4,',',I8,
+     >       4(',',ES44.34E4))
       END
 ************************************************************************
 *DECK EIGVFK

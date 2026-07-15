@@ -1,0 +1,144 @@
+C     QUADRUPLE-PRECISION BLAS SUBSET FOR THE OPT-IN MISHKA_REAL16 BUILD.
+C     ONLY THE HISTORICAL ENTRY POINTS USED BY MISHKA ARE IMPLEMENTED.
+
+      SUBROUTINE SCOPY(N,SX,INCX,SY,INCY)
+      INTEGER N,INCX,INCY,I,IX,IY
+      REAL SX(*),SY(*)
+      IF (N.LE.0) RETURN
+      IX=1
+      IY=1
+      IF (INCX.LT.0) IX=1+(1-N)*INCX
+      IF (INCY.LT.0) IY=1+(1-N)*INCY
+      DO 10 I=1,N
+         SY(IY)=SX(IX)
+         IX=IX+INCX
+         IY=IY+INCY
+   10 CONTINUE
+      RETURN
+      END
+
+      SUBROUTINE SSCAL(N,SA,SX,INCX)
+      INTEGER N,INCX,I,IX
+      REAL SA,SX(*)
+      IF (N.LE.0 .OR. INCX.EQ.0) RETURN
+      IX=1
+      IF (INCX.LT.0) IX=1+(1-N)*INCX
+      DO 10 I=1,N
+         SX(IX)=SA*SX(IX)
+         IX=IX+INCX
+   10 CONTINUE
+      RETURN
+      END
+
+      SUBROUTINE CCOPY(N,CX,INCX,CY,INCY)
+      INTEGER N,INCX,INCY,I,IX,IY
+      COMPLEX CX(*),CY(*)
+      IF (N.LE.0) RETURN
+      IX=1
+      IY=1
+      IF (INCX.LT.0) IX=1+(1-N)*INCX
+      IF (INCY.LT.0) IY=1+(1-N)*INCY
+      DO 10 I=1,N
+         CY(IY)=CX(IX)
+         IX=IX+INCX
+         IY=IY+INCY
+   10 CONTINUE
+      RETURN
+      END
+
+      SUBROUTINE CSCAL(N,CA,CX,INCX)
+      INTEGER N,INCX,I,IX
+      COMPLEX CA,CX(*)
+      IF (N.LE.0 .OR. INCX.EQ.0) RETURN
+      IX=1
+      IF (INCX.LT.0) IX=1+(1-N)*INCX
+      DO 10 I=1,N
+         CX(IX)=CA*CX(IX)
+         IX=IX+INCX
+   10 CONTINUE
+      RETURN
+      END
+
+      SUBROUTINE CAXPY(N,CA,CX,INCX,CY,INCY)
+      INTEGER N,INCX,INCY,I,IX,IY
+      COMPLEX CA,CX(*),CY(*)
+      IF (N.LE.0 .OR. CA.EQ.(0.0,0.0)) RETURN
+      IX=1
+      IY=1
+      IF (INCX.LT.0) IX=1+(1-N)*INCX
+      IF (INCY.LT.0) IY=1+(1-N)*INCY
+      DO 10 I=1,N
+         CY(IY)=CY(IY)+CA*CX(IX)
+         IX=IX+INCX
+         IY=IY+INCY
+   10 CONTINUE
+      RETURN
+      END
+
+      COMPLEX FUNCTION CDOTC(N,CX,INCX,CY,INCY)
+      INTEGER N,INCX,INCY,I,IX,IY
+      COMPLEX CX(*),CY(*)
+      CDOTC=(0.0,0.0)
+      IF (N.LE.0) RETURN
+      IX=1
+      IY=1
+      IF (INCX.LT.0) IX=1+(1-N)*INCX
+      IF (INCY.LT.0) IY=1+(1-N)*INCY
+      DO 10 I=1,N
+         CDOTC=CDOTC+CONJG(CX(IX))*CY(IY)
+         IX=IX+INCX
+         IY=IY+INCY
+   10 CONTINUE
+      RETURN
+      END
+
+      COMPLEX FUNCTION CDOTU(N,CX,INCX,CY,INCY)
+      INTEGER N,INCX,INCY,I,IX,IY
+      COMPLEX CX(*),CY(*)
+      CDOTU=(0.0,0.0)
+      IF (N.LE.0) RETURN
+      IX=1
+      IY=1
+      IF (INCX.LT.0) IX=1+(1-N)*INCX
+      IF (INCY.LT.0) IY=1+(1-N)*INCY
+      DO 10 I=1,N
+         CDOTU=CDOTU+CX(IX)*CY(IY)
+         IX=IX+INCX
+         IY=IY+INCY
+   10 CONTINUE
+      RETURN
+      END
+
+      REAL FUNCTION SCASUM(N,CX,INCX)
+      INTEGER N,INCX,I,IX
+      COMPLEX CX(*)
+      SCASUM=0.0
+      IF (N.LE.0 .OR. INCX.LE.0) RETURN
+      IX=1
+      DO 10 I=1,N
+         SCASUM=SCASUM+ABS(REAL(CX(IX)))+ABS(AIMAG(CX(IX)))
+         IX=IX+INCX
+   10 CONTINUE
+      RETURN
+      END
+
+      INTEGER FUNCTION ICAMAX(N,CX,INCX)
+      INTEGER N,INCX,I,IX
+      REAL BEST,VALUE
+      COMPLEX CX(*)
+      ICAMAX=0
+      IF (N.LT.1 .OR. INCX.LE.0) RETURN
+      ICAMAX=1
+      IX=1
+      BEST=ABS(REAL(CX(IX)))+ABS(AIMAG(CX(IX)))
+      IX=IX+INCX
+      DO 10 I=2,N
+         VALUE=ABS(REAL(CX(IX)))+ABS(AIMAG(CX(IX)))
+         IF (VALUE.GT.BEST) THEN
+            ICAMAX=I
+            BEST=VALUE
+         ENDIF
+         IX=IX+INCX
+   10 CONTINUE
+      RETURN
+      END
