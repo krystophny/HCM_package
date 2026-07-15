@@ -1,3 +1,5 @@
+include precision.mk
+
 all: mishkalib.a
 	cd src && $(MAKE) all; 
 	echo make successful!;

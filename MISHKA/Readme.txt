@@ -12,6 +12,17 @@ $ make
 
 If successful, an executable 'mishika.exe' will be automatically generated
 
+For reproducible operator traces in double precision, use
+
+$ make clean
+$ make MISHKA_REAL8=1
+
+This opt-in build promotes MISHKA's default REAL and COMPLEX data and all of
+its bundled LINPACK routines.  A small adapter maps the historical SCOPY,
+SSCAL, CCOPY, CSCAL, CAXPY, CDOTC, CDOTU, SCASUM, and ICAMAX calls to the
+corresponding double-precision BLAS routines.  The default build and its
+single-precision ABI are unchanged when MISHKA_REAL8 is unset.
+
 NOTE: gfortran and blas library is required. (Included in PRL_PTM virtual machines)
 If you don't have them, you can install gfortran and blas library by
 
@@ -32,7 +43,6 @@ for example,
 $ ./runmis he18696_290_10a mi18696_290_10a_1
 
 NOTE: This version of MISHIKA do not have any modification.
-
 
 
 
