@@ -37,6 +37,12 @@ temporary copy, so suppressing tiny printed values cannot alter the solved
 vector or its subsequent residual trace.  Run `make check-real16-blas` for a
 deterministic unit check of every compatibility entry point.
 
+Set `GLISS_MISHKA_MODESET_TRACE=1` to write `fort.30` for a `MODE=4` run.
+Unlike the legacy diagnostics, this opt-in trace records the eigenvalue,
+global generalized-eigenpair residual, and full native vector for every one of
+the requested `NSHIFT` iterations. Invalid values are rejected before the
+first factorization. Ordinary runs and `fort.29` are unchanged.
+
 NOTE: gfortran and blas library is required. (Included in PRL_PTM virtual machines)
 If you don't have them, you can install gfortran and blas library by
 
@@ -55,6 +61,3 @@ $ ./runmis mappingfile namelistfile
 for example,
 
 $ ./runmis he18696_290_10a mi18696_290_10a_1
-
-NOTE: This version of MISHIKA do not have any modification.
-

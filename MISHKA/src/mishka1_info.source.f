@@ -558,6 +558,7 @@ C
 *CALL COMBND
 C
       CHARACTER*11  TXTPL(5)
+      INTEGER MODESETACTIVE
 C
       DATA TXTPL /'QR         ','STEUERWALD ',' ','IN-CORE-OOC',' '/
 C
@@ -727,14 +728,19 @@ C
          STOP
       ENDIF
 C
+      CALL GLISSMODESETOPEN(NSHIFT,MODESETACTIVE)
       DO ISH = 1, NSHIFT
         ISHIFT = ISH
         EWSHIFT = VSHIFT(ISH)
         CALL MAT4
         CALL SOLV4(EWOUT,NVI)
-        IF ((NVI.LT.20).AND.(REAL(EWOUT).GT.0.)) GOTO 499
+        CALL GLISSTRACEMODESET(ISH,NSHIFT,EWSHIFT,EW,
+     >                         MODESETACTIVE)
+        IF ((NVI.LT.20).AND.(REAL(EWOUT).GT.0.).AND.
+     >      MODESETACTIVE.EQ.0) GOTO 499
       ENDDO
-  499 CONTINUE    
+  499 CONTINUE
+      CALL GLISSMODESETCLOSE(MODESETACTIVE)
       CALL DIAG234
       GOTO 10
   500 CONTINUE
@@ -5091,6 +5097,145 @@ C
      >       '   REL. CHANGE : ',E12.4)
    12 FORMAT(' GLISS_SHIFT_TRACE ',I3,1P,10E16.8,0P)
    21 FORMAT(' STOPPED AFTER ',I4,' ITERATIONS')
+      END
+************************************************************************
+*DECK GLISSMODESETOPEN
+      SUBROUTINE GLISSMODESETOPEN(NMODE,ACTIVE)
+C-----------------------------------------------------------------------
+C     OPEN AN OPT-IN TRACE FOR EVERY REQUESTED NATIVE SHIFT ITERATION.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+*CALL COMGRID
+C
+      INTEGER ACTIVE, IOS, NMODE, NTRACE
+      PARAMETER (NTRACE=30)
+      CHARACTER*32 TRACEENV
+C
+      ACTIVE=0
+      TRACEENV=' '
+      CALL GETENV('GLISS_MISHKA_MODESET_TRACE',TRACEENV)
+      IF (TRACEENV.EQ.' ') RETURN
+      IF (TRACEENV.NE.'1') THEN
+         WRITE(*,*) 'GLISS_MISHKA_MODESET_TRACE MUST BE 1 OR UNSET'
+         STOP 2
+      ENDIF
+      IF (NMODE.LT.1 .OR. NMODE.GT.100) THEN
+         WRITE(*,*) 'GLISS MODESET TRACE: NSHIFT OUT OF RANGE'
+         STOP 2
+      ENDIF
+      OPEN(UNIT=NTRACE,FILE='fort.30',STATUS='REPLACE',ACTION='WRITE',
+     >     IOSTAT=IOS)
+      IF (IOS.NE.0) THEN
+         WRITE(*,*) 'GLISS MODESET TRACE: CANNOT OPEN fort.30, IOSTAT=',
+     >              IOS
+         STOP 2
+      ENDIF
+      ACTIVE=1
+      WRITE(NTRACE,'(A)') 'MODESET_TRACE_VERSION,1'
+      WRITE(NTRACE,'(A,I0,A,I0)') 'MODESET_TRACE_PRECISION,',
+     >     STORAGE_SIZE(1.0),',',STORAGE_SIZE((1.0,0.0))
+      WRITE(NTRACE,1000) NG,NBG,NMODE
+      RETURN
+C
+ 1000 FORMAT('MODESET_DIMENSIONS,',3(I8,:,','))
+      END
+************************************************************************
+*DECK GLISSTRACEMODESET
+      SUBROUTINE GLISSTRACEMODESET(IMODE,NMODE,SHIFT,LAMBDA,ACTIVE)
+C-----------------------------------------------------------------------
+C     WRITE ONE REAL-PRECISION NATIVE MODE AND ITS GLOBAL RESIDUAL.
+C-----------------------------------------------------------------------
+C
+*CALL COMMAX
+*CALL COMPAR
+*CALL COMP234
+*CALL CORE234D
+*CALL COMGRID
+C
+      INTEGER ACTIVE, GLISSRK, I, IMODE, J, NI, NMODE, NTRACE
+      PARAMETER (GLISSRK=MAX(KIND(1.0),KIND(1.0D0)),NTRACE=30)
+      COMPLEX LAMBDA, SHIFT, XV(NZMA)
+      COMPLEX(KIND=GLISSRK) AX(NBG,NGMAX), BX(NBG,NGMAX), LAM, SH,
+     >                      VALUE
+      REAL(KIND=GLISSRK) ANORM, BNORM, RELATIVE, RNORM, SCALE
+C
+      IF (ACTIVE.EQ.0) RETURN
+      IF (IMODE.LT.1 .OR. IMODE.GT.NMODE) THEN
+         WRITE(*,*) 'GLISS MODESET TRACE: INVALID MODE DIMENSIONS'
+         STOP 2
+      ENDIF
+      LAM=CMPLX(LAMBDA,KIND=GLISSRK)
+      SH=CMPLX(SHIFT,KIND=GLISSRK)
+      DO 10 J=1,NG
+         DO 10 I=1,NBG
+            AX(I,J)=(0.0,0.0)
+            BX(I,J)=(0.0,0.0)
+   10 CONTINUE
+      DO 40 NI=1,NGINT
+         DO 20 I=1,NBG
+            XV(I)=EV(I,NI)
+            XV(NBG+I)=EV(I,NI+1)
+   20    CONTINUE
+         CALL CONAMAT(NI,NZMA,ZMA)
+         CALL GLISSTRACEACTION(NI,XV,ZMA,AX)
+         CALL CONBMAT(NI,NZMA,ZMA)
+         CALL GLISSTRACEACTION(NI,XV,ZMA,BX)
+   40 CONTINUE
+      ANORM=0.0D0
+      BNORM=0.0D0
+      RNORM=0.0D0
+      DO 60 J=1,NG
+         DO 50 I=1,NBG
+            VALUE=AX(I,J)-LAM*BX(I,J)
+            ANORM=ANORM+ABS(AX(I,J))**2
+            BNORM=BNORM+ABS(BX(I,J))**2
+            RNORM=RNORM+ABS(VALUE)**2
+   50    CONTINUE
+   60 CONTINUE
+      ANORM=SQRT(ANORM)
+      BNORM=SQRT(BNORM)
+      RNORM=SQRT(RNORM)
+      SCALE=ANORM+ABS(LAM)*BNORM
+      IF (SCALE.GT.0.0D0) THEN
+         RELATIVE=RNORM/SCALE
+      ELSE IF (RNORM.EQ.0.0D0) THEN
+         RELATIVE=0.0D0
+      ELSE
+         RELATIVE=1.0D0
+      ENDIF
+      WRITE(NTRACE,1000) IMODE,SH,LAM,ANORM,BNORM,RNORM,RELATIVE
+      DO 80 J=1,NG
+         DO 70 I=1,NBG
+            WRITE(NTRACE,1001) IMODE,J,I,
+     >           CMPLX(EV(I,J),KIND=GLISSRK)
+   70    CONTINUE
+   80 CONTINUE
+      RETURN
+C
+ 1000 FORMAT('MODESET_MODE,',I8,8(',',ES44.34E4))
+ 1001 FORMAT('MODESET_VECTOR,',3(I8,','),2(ES44.34E4,:,','))
+      END
+************************************************************************
+*DECK GLISSMODESETCLOSE
+      SUBROUTINE GLISSMODESETCLOSE(ACTIVE)
+C-----------------------------------------------------------------------
+C     CLOSE THE OPT-IN NATIVE MODESET TRACE.
+C-----------------------------------------------------------------------
+C
+      INTEGER ACTIVE, IOS, NTRACE
+      PARAMETER (NTRACE=30)
+C
+      IF (ACTIVE.EQ.0) RETURN
+      CLOSE(NTRACE,IOSTAT=IOS)
+      IF (IOS.NE.0) THEN
+         WRITE(*,*) 'GLISS MODESET TRACE: CANNOT CLOSE fort.30,',
+     >              ' IOSTAT=',IOS
+         STOP 2
+      ENDIF
+      ACTIVE=0
+      RETURN
       END
 ************************************************************************
 *DECK GLISSITERRESIDUAL
